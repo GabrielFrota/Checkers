@@ -39,23 +39,31 @@ public class MainWindow extends JFrame {
           var sq = board.arr[row][col];
           
           if (Checkers.mode.get() == 0) {
+            // testing mode
             if (sq.piece != 0) {
               board.selected(new Point(row, col));
+              repaint();
             } else if (sq.selection == 2) {
-              board.move(board.selected(), new Point(row, col));           
-            } else
-              return;
-            repaint();
+              board.move(board.selected(), new Point(row, col));   
+              repaint();
+            }             
           } else {
+            // not testing mode. the GUI thread ignores mouse clicks 
+            // when it is not black player turn.
             if (!Checkers.blackPlays.get())
-              return;       
+              return;    
+  
             if (sq.piece == -1 || sq.piece == -2) {
               board.selected(new Point(row, col));
+              repaint();
             } else if (sq.selection == 2) {
               board.move(board.selected(), new Point(row, col));
-            } else 
-              return;
-            repaint();
+              repaint();
+              synchronized (Checkers.blackPlays) { 
+                Checkers.blackPlays.set(false);
+                Checkers.blackPlays.notify();
+              }
+            }                   
           }
         }
       });
@@ -92,9 +100,14 @@ public class MainWindow extends JFrame {
             g2d.setStroke(new BasicStroke(4));
             g2d.fillOval(currX + 40, currY + 40, 20, 20);
           }
+          if (sq.selection == 3) {
+            g2d.setColor(Color.GREEN);
+            g2d.setStroke(new BasicStroke(4));
+            g2d.fillOval(currX + 40, currY + 40, 20, 20);
+          }
         }
       }
-      label2.setText(Integer.toString(board.value()));
+      label2.setText(Integer.toString(board.evaluate()));
     }   
   }
   

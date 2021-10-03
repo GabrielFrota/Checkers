@@ -14,7 +14,7 @@ class Square {
     static int NONE = 0;
     static int SELECTED = 1;
     static int VALID_MOVE = 2;
-    static int STEP_MOVE = 3;
+    static int JUMP_MOVE = 3;
   }
   
   int background;

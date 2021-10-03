@@ -3,10 +3,11 @@ package core;
 class Board {
   
   final Square[][] arr = new Square[8][8];
-    
+  
   private Point selected;
   private MoveList moves;
-  
+  private int whiteCnt, blackCnt;
+    
   private void odd(Square[] dest, int piece) {
     for (int col = 0; col < dest.length; col++) {
       if (col % 2 != 0)
@@ -34,6 +35,19 @@ class Board {
     even(arr[5], 1);
     odd(arr[6], 1);
     even(arr[7], 1);
+    whiteCnt = 12;
+    blackCnt = 12;
+  }
+  
+  Board(Square[][] in, int whiteCnt, int blackCnt) {
+    for (int row = 0; row < arr.length; row++) {
+      for (int col = 0; col < arr[row].length; col++) {
+        var sq = in[row][col];
+        arr[row][col] = new Square(sq.background, sq.piece);
+      }
+    }
+    this.whiteCnt = whiteCnt;
+    this.blackCnt = blackCnt;
   }
   
   private void clearSelection() {
@@ -41,11 +55,13 @@ class Board {
       arr[selected.row][selected.col].selection = 0;
       selected = null;
     }
-    for (var m : moves) {
-      for (var s : m.steps) 
-        arr[s.dest.row][s.dest.col].selection = 0;   
+    if (moves != null) {
+      for (var m : moves) {
+        for (var s : m.steps) 
+          arr[s.dest.row][s.dest.col].selection = 0;   
+      }
+      moves.clear();
     }
-    moves.clear();
   }
   
   private void setSelection() {
@@ -68,35 +84,78 @@ class Board {
     return selected;
   }
   
-  public int value() {
-    int cnt = 0;
-    for (int i = 0; i < arr.length; i++) {
-      for (int j = 0; j < arr[i].length; j++) {
-        var p = arr[i][j].piece;
-        if (p != 0)
-          cnt += p;
-      }
-    }
-    return -cnt;
+  public int whiteCnt() {
+    return whiteCnt;
   }
-      
+  
+  public int blackCnt() {
+    return blackCnt;
+  }
+   
+  public int evaluate() {
+    return whiteCnt - blackCnt;
+  }
+  
   public void move(Move m) {
     for (var s : m.steps) {
       var sqSrc = arr[s.src.row][s.src.col];
       var sqDest = arr[s.dest.row][s.dest.col];
-      if (s.jumped != null) 
-        s.jumped.piece = 0;
+      if (s.jumped != null) {
+        var sq = arr[s.jumped.row][s.jumped.col];
+        if (sq.piece < 0) blackCnt += sq.piece;
+        if (sq.piece > 0) whiteCnt -= sq.piece;
+        sq.piece = 0;
+      }
       sqDest.piece = sqSrc.piece;
       sqSrc.piece = 0;
       sqSrc.selection = 0;
-      if (sqDest.piece < 0 && s.dest.row == 7) sqDest.piece = -2;
-      if (sqDest.piece > 0 && s.dest.row == 0) sqDest.piece = 2;
+      if (sqDest.piece == -1 && s.dest.row == 7) {
+        blackCnt += 1;
+        sqDest.piece = -2;
+      }
+      if (sqDest.piece == 1 && s.dest.row == 0) {
+        whiteCnt += 1;
+        sqDest.piece = 2;
+      }
     }
     clearSelection();
-    synchronized (Checkers.blackPlays) { 
-      Checkers.blackPlays.set(!Checkers.blackPlays.get());
-      Checkers.blackPlays.notify();
+  }
+  
+  public void move(Move m, MainWindow window) {
+    for (var s : m.steps) {
+      var sqSrc = arr[s.src.row][s.src.col];
+      var sqDest = arr[s.dest.row][s.dest.col];
+      sqSrc.selection = 1;
+      sqDest.selection = 2;
+      if (s.jumped != null)
+        arr[s.jumped.row][s.jumped.col].selection = 3;
+      window.repaintPanel();
+      try {
+        Thread.sleep(1000);
+      } catch (InterruptedException e) {
+        e.printStackTrace();
+      }
+      if (s.jumped != null) {
+        var sq = arr[s.jumped.row][s.jumped.col];
+        if (sq.piece < 0) blackCnt += sq.piece;
+        if (sq.piece > 0) whiteCnt -= sq.piece;
+        sq.piece = 0;
+        sq.selection = 0;
+      }
+      sqDest.piece = sqSrc.piece;
+      sqSrc.piece = 0;
+      sqSrc.selection = 0;
+      sqDest.selection = 0;
+      if (sqDest.piece == -1 && s.dest.row == 7) {
+        blackCnt += 1;
+        sqDest.piece = -2;
+      }
+      if (sqDest.piece == 1 && s.dest.row == 0) {
+        whiteCnt += 1;
+        sqDest.piece = 2;
+      }
     }
+    clearSelection();
   }
   
   public void move(Point src, Point dest) {
@@ -130,7 +189,7 @@ class Board {
       return false;
     
     if (arr[rowDest][colDest].piece != 0 && arr[rowJump][colJump].piece == 0) {
-      var s = new Move.Step(p, new Point(rowJump, colJump), arr[rowDest][colDest]);
+      var s = new Move.Step(p, new Point(rowJump, colJump), new Point(rowDest, colDest));
       l.add(new Move(s));
     }    
     return false;
@@ -172,12 +231,12 @@ class Board {
     for (var m : l) {
       if (m.hasJump()) {
         var jumped = m.steps.getLast().jumped;
-        int val = jumped.piece;
+        int val = arr[jumped.row][jumped.col].piece;
         for (var s : m.steps)
-          s.jumped.piece = 0;
+          arr[s.jumped.row][s.jumped.col].piece = 0;
         var lll = validMoves(m.steps.getLast().dest, sq.piece);
         for (var s : m.steps)
-          s.jumped.piece = val;
+          arr[s.jumped.row][s.jumped.col].piece = val;
         for (var mm : lll) {
           if (mm.hasJump()) {
             for (var s : m.steps)

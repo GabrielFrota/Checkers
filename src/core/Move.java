@@ -7,14 +7,14 @@ class Move {
   static class Step {
     final Point src;
     final Point dest;
-    final Square jumped;
+    final Point jumped;
     
     Step(Point s, Point d) {
       src = s;
       dest = d;
       jumped = null;
     }
-    Step(Point s, Point d, Square j) {
+    Step(Point s, Point d, Point j) {
       src = s;
       dest = d;
       jumped = j;
